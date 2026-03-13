@@ -1,7 +1,7 @@
 # Sistema de Analisis de Rentabilidad
 # Profitability Analysis System
 # Programacion Estructurada - Primer Previo
-# Estudiante: [Tu nombre]
+# Estudiante: Natalia Moreno Bohorquez 
 
 import json  # para guardar y cargar datos / to save and load data
 import os    # para limpiar pantalla / to clear screen
