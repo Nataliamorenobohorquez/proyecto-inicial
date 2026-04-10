@@ -1,7 +1,7 @@
 # sistema_rentabilidad.py
-# Sistema de Analisis de Rentabilidad - Avance 5
-# Profitability Analysis System - Advance 5
-# Unidad 2: Tratamiento de cadenas / String treatment
+# Sistema de Analisis de Rentabilidad - Avance 7
+# Profitability Analysis System - Advance 7
+# Unidad 2: Diccionarios y registros complejos / Dictionaries and complex records
 # Programacion Estructurada - Primer Previo
 
 import json  # para guardar y cargar datos / to save and load data
@@ -10,6 +10,10 @@ import os    # para limpiar pantalla / to clear screen
 # variable global con la lista de productos
 # global variable with the product list
 productos = []
+
+# contador global para asignar id unico a cada producto
+# global counter to assign unique id to each product
+contador_id = 1
 
 
 # =============================================================================
@@ -78,7 +82,7 @@ def calcular(costo1, costo2, precio_venta):
 # =============================================================================
 
 def registrar_producto():
-    global productos
+    global productos, contador_id
 
     print("\n--- Registrar Producto / Register Product ---")
 
@@ -98,27 +102,32 @@ def registrar_producto():
     # llamar funcion de calculo / call calculation function
     mejor, costo_mejor, ganancia, rentabilidad = calcular(costo1, costo2, precio)
 
-    # guardar en lista global / save in global list
+    # guardar en lista global como diccionario complejo / save in global list as complex dictionary
     producto = {
-        "nombre": nombre,
-        "costo1": costo1,
-        "costo2": costo2,
-        "precio_venta": precio,
-        "mejor_prov": mejor,
-        "mejor_costo": costo_mejor,
-        "ganancia": ganancia,
-        "rentabilidad": rentabilidad
+        "id":           contador_id,  # int  - identificador unico / unique identifier
+        "nombre":       nombre,        # str  - nombre del producto / product name
+        "costo1":       costo1,        # float - costo proveedor 1 / supplier 1 cost
+        "costo2":       costo2,        # float - costo proveedor 2 / supplier 2 cost
+        "precio_venta": precio,        # float - precio de venta / sale price
+        "mejor_prov":   mejor,         # str  - mejor proveedor / best supplier
+        "mejor_costo":  costo_mejor,   # float - costo del mejor proveedor / best supplier cost
+        "ganancia":     ganancia,      # float - ganancia calculada / calculated profit
+        "rentabilidad": rentabilidad,  # float - porcentaje rentabilidad / profitability %
+        "disponible":   True           # bool - si el producto esta activo / if product is active
     }
     productos.append(producto)
+    contador_id = contador_id + 1  # incrementar id / increment id
 
     # mostrar resultado con f-strings alineados / show result with aligned f-strings
     print()
     print(f"  {'-'*40}")
+    print(f"  {'ID':<28} {producto['id']}")
     print(f"  {'Nombre / Name':<28} {nombre}")
     print(f"  {'Mejor proveedor / Best supplier':<28} {mejor}")
     print(f"  {'Costo mejor / Best cost':<28} ${costo_mejor:.2f}")
     print(f"  {'Ganancia / Profit':<28} ${ganancia:.2f}")
     print(f"  {'Rentabilidad / Profitability':<28} {rentabilidad:.2f}%")
+    print(f"  {'Disponible / Available':<28} {producto['disponible']}")
     print(f"  {'-'*40}")
 
     input("\nPresiona Enter para continuar / Press Enter to continue...")
@@ -139,16 +148,17 @@ def ver_productos():
     # tabla alineada con f-strings y ancho fijo
     # aligned table with f-strings and fixed width
     print()
-    print(f"  {'#':<4} {'Nombre / Name':<22} {'Mejor Prov.':<14} {'Ganancia':>10} {'Rentab.':>10}")
-    print("  " + "-" * 62)
+    print(f"  {'ID':<5} {'Nombre / Name':<22} {'Mejor Prov.':<14} {'Ganancia':>10} {'Rentab.':>10} {'Activo':>8}")
+    print("  " + "-" * 72)
 
     for i in range(len(productos)):
         p = productos[i]
         nombre_corto = p["nombre"][:20]
-        print(f"  {i+1:<4} {nombre_corto:<22} {p['mejor_prov']:<14} "
-              f"${p['ganancia']:>8.2f} {p['rentabilidad']:>8.2f}%")
+        activo = "Si/Yes" if p["disponible"] else "No"
+        print(f"  {p['id']:<5} {nombre_corto:<22} {p['mejor_prov']:<14} "
+              f"${p['ganancia']:>8.2f} {p['rentabilidad']:>8.2f}% {activo:>8}")
 
-    print("  " + "-" * 62)
+    print("  " + "-" * 72)
 
     # calcular promedio / calculate average
     total_rent = 0
@@ -241,7 +251,89 @@ def eliminar_producto():
 
 
 # =============================================================================
-# MODULO 5 - GUARDAR DATOS / SAVE DATA
+# MODULO 5 - ACTUALIZAR PRODUCTO / UPDATE PRODUCT
+# =============================================================================
+
+# funcion para buscar un producto por id y actualizar sus datos
+# function to search a product by id and update its data
+def actualizar_producto():
+    global productos
+
+    print("\n--- Actualizar Producto / Update Product ---")
+
+    if len(productos) == 0:
+        print("No hay productos para actualizar / No products to update")
+        input("\nPresiona Enter para continuar / Press Enter to continue...")
+        return
+
+    # mostrar lista con ids / show list with ids
+    for p in productos:
+        activo = "Si/Yes" if p["disponible"] else "No"
+        print(f"  ID {p['id']} - {p['nombre']} - Activo / Active: {activo}")
+
+    try:
+        # buscar por id / search by id
+        id_buscar = int(input("\nID del producto a actualizar / Product ID to update: "))
+
+        # encontrar el producto en la lista / find the product in the list
+        producto_encontrado = None
+        for p in productos:
+            if p["id"] == id_buscar:
+                producto_encontrado = p
+                break
+
+        if producto_encontrado is None:
+            print(f"  No se encontro el ID / ID not found: {id_buscar}")
+            input("\nPresiona Enter para continuar / Press Enter to continue...")
+            return
+
+        # mostrar opciones de actualizacion / show update options
+        print(f"\n  Producto / Product: {producto_encontrado['nombre']}")
+        print("  1. Cambiar nombre / Change name")
+        print("  2. Cambiar precio de venta / Change sale price")
+        print("  3. Cambiar disponible / Change available (True/False)")
+
+        opcion = input("\n  Que deseas actualizar / What do you want to update: ")
+
+        if opcion == "1":
+            nuevo_nombre = formatear_nombre(input("  Nuevo nombre / New name: "))
+            producto_encontrado.update({"nombre": nuevo_nombre})
+            print(f"  Nombre actualizado / Name updated: {nuevo_nombre}")
+
+        elif opcion == "2":
+            nuevo_precio = pedir_numero("  Nuevo precio de venta / New sale price: ")
+            # recalcular ganancia y rentabilidad / recalculate profit and profitability
+            mejor, costo_mejor, ganancia, rentabilidad = calcular(
+                producto_encontrado["costo1"],
+                producto_encontrado["costo2"],
+                nuevo_precio
+            )
+            producto_encontrado.update({
+                "precio_venta": nuevo_precio,
+                "ganancia":     ganancia,
+                "rentabilidad": rentabilidad
+            })
+            print(f"  Precio actualizado / Price updated: ${nuevo_precio:.2f}")
+            print(f"  Nueva ganancia / New profit       : ${ganancia:.2f}")
+            print(f"  Nueva rentabilidad / New profitab.: {rentabilidad:.2f}%")
+
+        elif opcion == "3":
+            estado_actual = producto_encontrado["disponible"]
+            nuevo_estado = not estado_actual  # cambiar True a False o viceversa
+            producto_encontrado.update({"disponible": nuevo_estado})
+            print(f"  Disponible actualizado / Available updated: {nuevo_estado}")
+
+        else:
+            print("  Opcion invalida / Invalid option")
+
+    except ValueError:
+        print("  Debes ingresar un numero / You must enter a number")
+
+    input("\nPresiona Enter para continuar / Press Enter to continue...")
+
+
+# =============================================================================
+# MODULO 6 - GUARDAR DATOS / SAVE DATA
 # =============================================================================
 
 def guardar_datos():
@@ -306,10 +398,11 @@ def main():
         print(f"  1. Registrar producto / Register product")
         print(f"  2. Ver productos      / View products")
         print(f"  3. Buscar producto    / Search product")
-        print(f"  4. Eliminar producto  / Delete product")
-        print(f"  5. Guardar datos      / Save data")
-        print(f"  6. Cargar datos       / Load data")
-        print(f"  7. Salir              / Exit")
+        print(f"  4. Actualizar producto/ Update product")
+        print(f"  5. Eliminar producto  / Delete product")
+        print(f"  6. Guardar datos      / Save data")
+        print(f"  7. Cargar datos       / Load data")
+        print(f"  8. Salir              / Exit")
         print("-" * 45)
 
         opcion = input("Elige una opcion / Choose an option: ")
@@ -322,17 +415,19 @@ def main():
         elif opcion == "3":
             buscar_producto()
         elif opcion == "4":
-            eliminar_producto()
+            actualizar_producto()
         elif opcion == "5":
-            guardar_datos()
+            eliminar_producto()
         elif opcion == "6":
-            cargar_datos()
+            guardar_datos()
         elif opcion == "7":
+            cargar_datos()
+        elif opcion == "8":
             print("Hasta luego! / Goodbye!")
             break
         else:
             # opcion invalida / invalid option
-            print("Opcion invalida, elige entre 1 y 7 / Invalid option, choose 1 to 7")
+            print("Opcion invalida, elige entre 1 y 8 / Invalid option, choose 1 to 8")
             input("Presiona Enter para continuar / Press Enter to continue...")
 
 
