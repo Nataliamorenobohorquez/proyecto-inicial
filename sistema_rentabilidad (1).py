@@ -1,13 +1,23 @@
 # =============================================================================
 # sistema_rentabilidad.py
-# Sistema de Analisis de Rentabilidad - Avance 7
-# Profitability Analysis System - Advance 7
+# Sistema de Analisis de Rentabilidad - Avance 6
+# Profitability Analysis System - Advance 6
 # -----------------------------------------------------------------------------
 # Descripcion / Description:
 #   Sistema que permite registrar productos, comparar costos entre dos
 #   proveedores y calcular automaticamente la ganancia y rentabilidad.
+#   Implementa almacenamiento dinamico con listas, operaciones CRUD
+#   (agregar con .append y consultar con ciclo for), busqueda con
+#   tratamiento de cadenas, y bilingüismo en encabezados y confirmaciones.
+#
 #   System that allows registering products, comparing costs between two
 #   suppliers and automatically calculating profit and profitability.
+#   Implements dynamic storage with lists, CRUD operations (add with
+#   .append and query with for loop), string-based search, and bilingual
+#   headers and confirmation messages.
+# -----------------------------------------------------------------------------
+# Avance 6: Implementacion de listas para almacenamiento dinamico de datos
+# Advance 6: Implementation of lists for dynamic data storage
 # -----------------------------------------------------------------------------
 # Asignatura / Subject : Programacion Estructurada
 # Docente / Teacher    : Robinson Damian Gomez Sanchez
@@ -26,29 +36,29 @@ productos = []
 
 # contador que asigna un ID unico a cada producto nuevo
 # counter that assigns a unique ID to each new product
-contador_id = 4  # empieza en 4 porque ya hay 3 datos precargados / starts at 4 because 3 are preloaded
+contador_id = 9  # empieza en 9 porque ya hay 8 datos precargados / starts at 9 because 8 are preloaded
 
 # =============================================================================
 # DATOS PRECARGADOS / PRELOADED DATA
 # -----------------------------------------------------------------------------
-# Se cargan 3 productos de ejemplo al iniciar el programa para que el sistema
+# Se cargan 8 productos de ejemplo al iniciar el programa para que el sistema
 # no inicie vacio y se pueda probar de inmediato.
-# 3 example products are loaded at startup so the system is not empty
+# 8 example products are loaded at startup so the system is not empty
 # and can be tested immediately.
 # =============================================================================
 
 productos = [
     {
-        "id":           1,              # int   - identificador unico / unique identifier
-        "nombre":       "Auriculares",  # str   - nombre del producto / product name
-        "costo1":       80000.0,        # float - costo proveedor 1 / supplier 1 cost
-        "costo2":       95000.0,        # float - costo proveedor 2 / supplier 2 cost
-        "precio_venta": 150000.0,       # float - precio de venta / sale price
-        "mejor_prov":   "Proveedor 1",  # str   - proveedor mas barato / cheapest supplier
-        "mejor_costo":  80000.0,        # float - costo del mejor proveedor / best supplier cost
-        "ganancia":     70000.0,        # float - ganancia = precio - costo / profit = price - cost
-        "rentabilidad": 87.5,           # float - porcentaje de rentabilidad / profitability %
-        "disponible":   True            # bool  - True si esta activo / True if active
+        "id":           1,
+        "nombre":       "Auriculares Bluetooth",
+        "costo1":       80000.0,
+        "costo2":       95000.0,
+        "precio_venta": 150000.0,
+        "mejor_prov":   "Proveedor 1",
+        "mejor_costo":  80000.0,
+        "ganancia":     70000.0,
+        "rentabilidad": 87.5,
+        "disponible":   True
     },
     {
         "id":           2,
@@ -72,7 +82,67 @@ productos = [
         "mejor_costo":  45000.0,
         "ganancia":     45000.0,
         "rentabilidad": 100.0,
-        "disponible":   False           # este producto esta desactivado / this product is deactivated
+        "disponible":   False
+    },
+    {
+        "id":           4,
+        "nombre":       "Monitor 24 Pulgadas",
+        "costo1":       550000.0,
+        "costo2":       490000.0,
+        "precio_venta": 780000.0,
+        "mejor_prov":   "Proveedor 2",
+        "mejor_costo":  490000.0,
+        "ganancia":     290000.0,
+        "rentabilidad": 59.18,
+        "disponible":   True
+    },
+    {
+        "id":           5,
+        "nombre":       "Camara Web Full Hd",
+        "costo1":       95000.0,
+        "costo2":       110000.0,
+        "precio_venta": 180000.0,
+        "mejor_prov":   "Proveedor 1",
+        "mejor_costo":  95000.0,
+        "ganancia":     85000.0,
+        "rentabilidad": 89.47,
+        "disponible":   True
+    },
+    {
+        "id":           6,
+        "nombre":       "Disco Duro Externo 1Tb",
+        "costo1":       160000.0,
+        "costo2":       148000.0,
+        "precio_venta": 260000.0,
+        "mejor_prov":   "Proveedor 2",
+        "mejor_costo":  148000.0,
+        "ganancia":     112000.0,
+        "rentabilidad": 75.68,
+        "disponible":   True
+    },
+    {
+        "id":           7,
+        "nombre":       "Silla Ergonomica",
+        "costo1":       320000.0,
+        "costo2":       340000.0,
+        "precio_venta": 580000.0,
+        "mejor_prov":   "Proveedor 1",
+        "mejor_costo":  320000.0,
+        "ganancia":     260000.0,
+        "rentabilidad": 81.25,
+        "disponible":   True
+    },
+    {
+        "id":           8,
+        "nombre":       "Memoria Ram 16Gb",
+        "costo1":       185000.0,
+        "costo2":       175000.0,
+        "precio_venta": 310000.0,
+        "mejor_prov":   "Proveedor 2",
+        "mejor_costo":  175000.0,
+        "ganancia":     135000.0,
+        "rentabilidad": 77.14,
+        "disponible":   False
     }
 ]
 # NOTA: Los datos precargados sirven para demostrar el sistema sin necesidad
@@ -277,6 +347,60 @@ def registrar_producto():
 
 
 # =============================================================================
+# CRUD - CONSULTAR (for loop) / QUERY (for loop)
+# =============================================================================
+# Avance 6: Funcion explicita de consulta que recorre la lista con un ciclo for
+# Advance 6: Explicit query function that loops through the list with a for loop
+
+def consultar_productos():
+    """
+    Consulta todos los productos de la lista usando un ciclo for.
+    Query all products in the list using a for loop.
+    Operacion CRUD: Consultar / CRUD Operation: Read
+    """
+    # -------------------------------------------------------------------------
+    # ENCABEZADO / HEADER
+    # Lista de Productos Registrados / List of Registered Products
+    # -------------------------------------------------------------------------
+    print()
+    print("=" * 55)
+    print(f"  {'Lista de Productos / Product List':^51}")
+    print("=" * 55)
+    print(f"  {'Campo / Field':<28} {'Valor / Value'}")
+    print("-" * 55)
+
+    # validar que existan datos / validate data exists
+    if len(productos) == 0:
+        print("  No hay productos registrados / No products registered")
+        print("=" * 55)
+        return
+
+    # recorrer la lista con un ciclo for y mostrar cada producto
+    # loop through the list with a for loop and display each product
+    for p in productos:
+        print()
+        print(f"  {'ID':<28} {p['id']}")
+        print(f"  {'Nombre / Name':<28} {p['nombre']}")
+        print(f"  {'Costo Prov.1 / Supplier 1 Cost':<28} ${p['costo1']:,.2f}")
+        print(f"  {'Costo Prov.2 / Supplier 2 Cost':<28} ${p['costo2']:,.2f}")
+        print(f"  {'Precio Venta / Sale Price':<28} ${p['precio_venta']:,.2f}")
+        print(f"  {'Mejor Proveedor / Best Supplier':<28} {p['mejor_prov']}")
+        print(f"  {'Ganancia / Profit':<28} ${p['ganancia']:,.2f}")
+        print(f"  {'Rentabilidad / Profitability':<28} {p['rentabilidad']:.2f}%")
+        print(f"  {'Disponible / Available':<28} {'Si / Yes' if p['disponible'] else 'No'}")
+        print("  " + "-" * 53)
+
+    print(f"\n  {'Total registros / Total records':<28} {len(productos)}")
+    print("=" * 55)
+# NOTA: Esta funcion implementa la operacion C-R-U-D de Consulta (Read).
+# Usa un ciclo for para recorrer la lista de productos y mostrar cada
+# diccionario con sus campos en formato bilingüe (Español / English).
+# NOTE: This function implements the C-R-U-D Read operation.
+# It uses a for loop to traverse the product list and display each
+# dictionary with its fields in bilingual format (Spanish / English).
+
+
+# =============================================================================
 # MODULO 2 - VER PRODUCTOS / VIEW PRODUCTS
 # =============================================================================
 
@@ -289,6 +413,34 @@ def ver_productos():
         print("No hay productos aun / No products yet")
         input("\nPresiona Enter para continuar / Press Enter to continue...")
         return
+
+    # preguntar como ordenar la lista antes de mostrarla
+    # ask how to sort the list before showing it
+    print("\n  Ordenar por / Sort by:")
+    print("  1. Nombre / Name")
+    print("  2. Rentabilidad / Profitability")
+    print("  3. Ganancia / Profit")
+    print("  4. Sin ordenar / No sort")
+    orden = input("  Opcion / Option: ").strip()
+
+    # .sort() con key= ordena la lista segun el criterio elegido
+    # .sort() with key= sorts the list according to the chosen criterion
+    if orden == "1":
+        # ordenar alfabeticamente por nombre usando lambda
+        # sort alphabetically by name using lambda
+        productos.sort(key=lambda p: p["nombre"].lower())
+        print("  Ordenado por nombre / Sorted by name")
+    elif orden == "2":
+        # ordenar de mayor a menor rentabilidad / sort from highest to lowest profitability
+        # reverse=True invierte el orden para que el mayor quede primero
+        # reverse=True reverses the order so the highest comes first
+        productos.sort(key=lambda p: p["rentabilidad"], reverse=True)
+        print("  Ordenado por rentabilidad / Sorted by profitability")
+    elif orden == "3":
+        # ordenar de mayor a menor ganancia / sort from highest to lowest profit
+        productos.sort(key=lambda p: p["ganancia"], reverse=True)
+        print("  Ordenado por ganancia / Sorted by profit")
+    # opcion 4 o cualquier otra no aplica ordenamiento / option 4 or any other applies no sorting
 
     # encabezado de tabla con f-strings y modificadores de ancho
     # table header with f-strings and width modifiers
@@ -597,8 +749,18 @@ def guardar_datos():
 
         archivo.close()  # siempre cerrar el archivo despues de usarlo / always close the file after using it
 
+        # -------------------------------------------------------------------------
+        # CONFIRMACION DE GUARDADO / SAVE CONFIRMATION
+        # -------------------------------------------------------------------------
+        print()
+        print("  " + "=" * 45)
+        print(f"  {'Datos guardados exitosamente!':^43}")
+        print(f"  {'Data saved successfully!':^43}")
+        print("  " + "=" * 45)
         print(f"  {'Archivo / File':<30} rentabilidad.json")
         print(f"  {'Registros guardados / Saved records':<30} {len(productos)}")
+        print(f"  {'Formato / Format':<30} JSON (UTF-8)")
+        print("  " + "-" * 45)
 
     except Exception as e:
         # captura cualquier error inesperado al escribir el archivo
@@ -680,13 +842,14 @@ def main():
 
         # opciones del menu / menu options
         print(f"  1. Registrar producto  / Register product")
-        print(f"  2. Ver productos       / View products")
-        print(f"  3. Buscar producto     / Search product")
-        print(f"  4. Actualizar producto / Update product")
-        print(f"  5. Eliminar producto   / Delete product")
-        print(f"  6. Guardar datos       / Save data")
-        print(f"  7. Cargar datos        / Load data")
-        print(f"  8. Salir               / Exit")
+        print(f"  2. Consultar lista     / Query list (CRUD)")
+        print(f"  3. Ver tabla productos / View products table")
+        print(f"  4. Buscar producto     / Search product")
+        print(f"  5. Actualizar producto / Update product")
+        print(f"  6. Eliminar producto   / Delete product")
+        print(f"  7. Guardar datos       / Save data")
+        print(f"  8. Cargar datos        / Load data")
+        print(f"  9. Salir               / Exit")
         print("-" * 45)
 
         # leer la opcion del usuario / read the user's option
@@ -695,42 +858,46 @@ def main():
         # estructura if/elif que dirige al modulo correspondiente segun la opcion
         # if/elif structure that directs to the corresponding module based on the option
         if opcion == "1":
-            registrar_producto()    # delega al modulo de registro / delegates to register module
+            registrar_producto()    # CRUD Agregar / Add - usa .append()
 
         elif opcion == "2":
-            ver_productos()         # delega al modulo de visualizacion / delegates to view module
+            consultar_productos()   # CRUD Consultar / Read - usa ciclo for
+            input("\nPresiona Enter para continuar / Press Enter to continue...")
 
         elif opcion == "3":
-            buscar_producto()       # delega al modulo de busqueda / delegates to search module
+            ver_productos()         # tabla con ordenamiento / table with sorting
 
         elif opcion == "4":
-            actualizar_producto()   # delega al modulo de actualizacion / delegates to update module
+            buscar_producto()       # busqueda por cadena / string search
 
         elif opcion == "5":
-            eliminar_producto()     # delega al modulo de eliminacion / delegates to delete module
+            actualizar_producto()   # CRUD Actualizar / Update
 
         elif opcion == "6":
-            guardar_datos()         # delega al modulo de guardado / delegates to save module
+            eliminar_producto()     # CRUD Eliminar / Delete
 
         elif opcion == "7":
-            cargar_datos()          # delega al modulo de carga / delegates to load module
+            guardar_datos()         # persistencia JSON / JSON persistence
 
         elif opcion == "8":
+            cargar_datos()          # cargar desde JSON / load from JSON
+
+        elif opcion == "9":
             print("\n  Hasta luego! / Goodbye!")
-            break  # break sale del ciclo while y termina el programa / break exits the while loop and ends the program
+            break  # break sale del ciclo while y termina el programa / break exits the while loop
 
         else:
             # cualquier otra entrada es invalida / any other input is invalid
-            print("  Opcion invalida. Elige entre 1 y 8 / Invalid option. Choose between 1 and 8")
+            print("  Opcion invalida. Elige entre 1 y 9 / Invalid option. Choose between 1 and 9")
             input("  Presiona Enter para continuar / Press Enter to continue...")
 
 # NOTA: main() es la funcion principal que coordina todo el programa.
 # Usa un ciclo while True para que el menu se muestre continuamente.
-# Solo termina cuando el usuario elige la opcion 8 que ejecuta break.
+# Solo termina cuando el usuario elige la opcion 9 que ejecuta break.
 # El diseno Top-Down hace que main() solo coordine y cada funcion ejecute.
 # NOTE: main() is the main function that coordinates the entire program.
 # It uses a while True loop so the menu is displayed continuously.
-# It only ends when the user chooses option 8 which executes break.
+# It only ends when the user chooses option 9 which executes break.
 # The Top-Down design makes main() only coordinate and each function execute.
 
 
