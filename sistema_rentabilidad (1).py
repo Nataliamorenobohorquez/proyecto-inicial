@@ -1,7 +1,7 @@
 # =============================================================================
 # sistema_rentabilidad.py
-# Sistema de Analisis de Rentabilidad - Avance 6
-# Profitability Analysis System - Advance 6
+# Sistema de Analisis de Rentabilidad - Avance 9
+# Profitability Analysis System - Advance 9
 # -----------------------------------------------------------------------------
 # Descripcion / Description:
 #   Sistema que permite registrar productos, comparar costos entre dos
@@ -16,19 +16,396 @@
 #   .append and query with for loop), string-based search, and bilingual
 #   headers and confirmation messages.
 # -----------------------------------------------------------------------------
-# Avance 6: Implementacion de listas para almacenamiento dinamico de datos
-# Advance 6: Implementation of lists for dynamic data storage
+# Avance 9: Implementacion de TAD y logica de apareo de archivos
+# Advance 9: Implementation of ADT and file matching logic
 # -----------------------------------------------------------------------------
 # Asignatura / Subject : Programacion Estructurada
 # Docente / Teacher    : Robinson Damian Gomez Sanchez
 # =============================================================================
 
-import json  # modulo para guardar y leer archivos JSON / module to save and read JSON files
-import os    # modulo para limpiar la pantalla del sistema / module to clear system screen
+import json   # modulo para guardar y leer archivos JSON / module to save and read JSON files
+import os     # modulo para limpiar la pantalla del sistema / module to clear system screen
+import csv    # modulo para leer y escribir archivos CSV / module to read and write CSV files
 
 # =============================================================================
-# VARIABLES GLOBALES / GLOBAL VARIABLES
+# CONSTANTES DE ARCHIVOS / FILE CONSTANTS
 # =============================================================================
+
+# nombres de los archivos de persistencia / persistence file names
+ARCHIVO_TXT = "base_datos.txt"    # archivo de texto plano / plain text file
+ARCHIVO_CSV = "base_datos.csv"    # archivo CSV para reportes / CSV file for reports
+ARCHIVO_LOG = "log_sistema.txt"   # archivo de registro de eventos / event log file
+ARCHIVO_JSON = "rentabilidad.json" # archivo JSON para carga/guardado / JSON file for load/save
+
+# =============================================================================
+# TAD - TIPO ABSTRACTO DE DATOS / ABSTRACT DATA TYPE
+# =============================================================================
+# Un TAD es una clase que encapsula atributos y metodos en un solo objeto.
+# Ya no se usan diccionarios sueltos; ahora se instancian objetos de clase.
+# An ADT is a class that encapsulates attributes and methods in a single object.
+# No more loose dictionaries; class objects are now instantiated.
+# =============================================================================
+
+class Producto:
+    """
+    TAD que representa la entidad principal del sistema: un Producto.
+    ADT that represents the main entity of the system: a Product.
+
+    Encapsula atributos y logica de negocio en un solo bloque de abstraccion.
+    Encapsulates attributes and business logic in a single abstraction block.
+    """
+
+    def __init__(self, id, nombre, costo1, costo2, precio_venta, disponible=True,
+                 mejor_prov=None, mejor_costo=None, ganancia=None, rentabilidad=None):
+        """
+        Constructor: se ejecuta automaticamente al crear un objeto Producto.
+        Constructor: runs automatically when creating a Producto object.
+        """
+        # atributos de entrada / input attributes
+        self.id           = id
+        self.nombre       = str(nombre).strip().title()  # str y formateo / str and formatting
+        self.costo1       = float(costo1)
+        self.costo2       = float(costo2)
+        self.precio_venta = float(precio_venta)
+        self.disponible   = bool(disponible)
+
+        # si ya vienen calculados (carga desde archivo) se usan directamente
+        # if already calculated (loaded from file) they are used directly
+        if mejor_prov is not None:
+            self.mejor_prov   = mejor_prov
+            self.mejor_costo  = float(mejor_costo)
+            self.ganancia     = float(ganancia)
+            self.rentabilidad = float(rentabilidad)
+        else:
+            # calcular automaticamente al registrar uno nuevo
+            # calculate automatically when registering a new one
+            self.mejor_prov, self.mejor_costo, self.ganancia, self.rentabilidad = self._calcular()
+
+    # ── Metodo de logica de negocio / Business logic method ──────────────────
+    def _calcular(self):
+        """
+        Compara proveedores y calcula ganancia y rentabilidad.
+        Compares suppliers and calculates profit and profitability.
+        Separa la logica de calculo de la interfaz de usuario.
+        Separates calculation logic from user interface.
+        """
+        if self.costo1 < self.costo2:
+            mejor_prov  = "Proveedor 1"
+            mejor_costo = self.costo1
+        elif self.costo2 < self.costo1:
+            mejor_prov  = "Proveedor 2"
+            mejor_costo = self.costo2
+        else:
+            mejor_prov  = "Empate"
+            mejor_costo = self.costo1
+
+        ganancia     = self.precio_venta - mejor_costo
+        rentabilidad = (ganancia / mejor_costo) * 100
+        return mejor_prov, mejor_costo, ganancia, rentabilidad
+
+    def clasificar(self):
+        """
+        Clasifica el producto segun su nivel de rentabilidad.
+        Classifies the product according to its profitability level.
+        Retorna / Returns: str - Alta / Media / Baja
+        """
+        if self.rentabilidad >= 40:
+            return "Alta / High"
+        elif self.rentabilidad >= 20:
+            return "Media / Medium"
+        else:
+            return "Baja / Low"
+
+    def es_rentable(self, umbral=20.0):
+        """
+        Evalua si el producto supera el umbral de rentabilidad.
+        Evaluates if the product exceeds the profitability threshold.
+        """
+        return self.rentabilidad >= umbral
+
+    def a_diccionario(self):
+        """
+        Convierte el objeto TAD a diccionario para JSON/CSV.
+        Converts the ADT object to dictionary for JSON/CSV.
+        """
+        return {
+            "id":           self.id,
+            "nombre":       self.nombre,
+            "costo1":       self.costo1,
+            "costo2":       self.costo2,
+            "precio_venta": self.precio_venta,
+            "mejor_prov":   self.mejor_prov,
+            "mejor_costo":  self.mejor_costo,
+            "ganancia":     self.ganancia,
+            "rentabilidad": self.rentabilidad,
+            "disponible":   self.disponible
+        }
+
+    @staticmethod
+    def desde_diccionario(d):
+        """
+        Crea un objeto Producto desde un diccionario (carga desde archivo).
+        Creates a Producto object from a dictionary (load from file).
+        @staticmethod no necesita self / @staticmethod doesn't need self.
+        """
+        return Producto(
+            id           = d.get("id", 0),
+            nombre       = d.get("nombre", ""),
+            costo1       = d.get("costo1", 0),
+            costo2       = d.get("costo2", 0),
+            precio_venta = d.get("precio_venta", 0),
+            disponible   = d.get("disponible", True),
+            mejor_prov   = d.get("mejor_prov"),
+            mejor_costo  = d.get("mejor_costo"),
+            ganancia     = d.get("ganancia"),
+            rentabilidad = d.get("rentabilidad")
+        )
+# NOTA: La clase Producto es el TAD del sistema. Encapsula 10 atributos y
+# 4 metodos. Separa la logica de calculo (_calcular) de la interfaz.
+# NOTE: The Producto class is the system ADT. Encapsulates 10 attributes
+# and 4 methods. Separates calculation logic (_calcular) from the interface.
+
+
+# =============================================================================
+# APAREO DE ARCHIVOS / FILE MATCHING
+# =============================================================================
+# El apareo cruza datos de dos archivos usando una llave comun (ID).
+# File matching crosses data from two files using a common key (ID).
+# Archivo maestro: base_datos.txt (todos los productos)
+# Archivo novedades: ventas_dia.txt (ventas del dia)
+# =============================================================================
+
+def generar_archivo_ventas():
+    """
+    Genera el archivo de ventas del dia como ejemplo para el apareo.
+    Generates the daily sales file as an example for matching.
+    Cada linea tiene: ID,cantidad_vendida
+    Each line has: ID,quantity_sold
+    """
+    # modo 'w' crea o sobreescribe el archivo de ventas
+    # mode 'w' creates or overwrites the sales file
+    with open("ventas_dia.txt", "w", encoding="utf-8") as f:
+        f.write("# ventas_dia.txt - Ventas del dia / Daily Sales\n")
+        f.write("# Formato / Format: ID,cantidad\n")
+        for p in productos:
+            # generar venta simulada para productos disponibles
+            # generate simulated sale for available products
+            if p.disponible if isinstance(p, Producto) else p.get("disponible", True):
+                pid = p.id if isinstance(p, Producto) else p.get("id")
+                f.write(f"{pid},3\n")
+
+    print("  Archivo ventas_dia.txt generado / ventas_dia.txt file generated")
+
+
+def aparear_archivos():
+    """
+    LOGICA DE APAREO: cruza el archivo maestro de productos con el archivo
+    de ventas del dia usando el ID como llave comun.
+    FILE MATCHING LOGIC: crosses the master product file with the daily
+    sales file using ID as the common key.
+
+    Capa de acceso a datos: lee los archivos
+    Data access layer: reads the files
+    Capa de procesamiento: cruza usando el ID
+    Processing layer: crosses using the ID
+    """
+    print("\n--- Apareo de Archivos / File Matching ---")
+    print("  Cruzando maestro con novedades / Crossing master with updates\n")
+
+    # primero generar el archivo de ventas si no existe
+    # first generate the sales file if it doesn't exist
+    if not os.path.exists("ventas_dia.txt"):
+        generar_archivo_ventas()
+
+    try:
+        # CAPA DE ACCESO A DATOS / DATA ACCESS LAYER
+        # leer archivo de ventas y construir diccionario {id: cantidad}
+        # read sales file and build dictionary {id: quantity}
+        ventas = {}
+        with open("ventas_dia.txt", "r", encoding="utf-8") as f:
+            for linea in f:
+                linea = linea.strip()
+                # ignorar comentarios y lineas vacias
+                # ignore comments and empty lines
+                if linea.startswith("#") or linea == "":
+                    continue
+                partes = linea.split(",")
+                if len(partes) == 2:
+                    try:
+                        id_venta  = int(partes[0])
+                        cantidad  = int(partes[1])
+                        ventas[id_venta] = cantidad  # llave comun: ID / common key: ID
+                    except ValueError:
+                        continue
+
+        if not ventas:
+            print("  No hay ventas registradas hoy / No sales registered today")
+            input("\nPresiona Enter para continuar / Press Enter to continue...")
+            return
+
+        # CAPA DE PROCESAMIENTO / PROCESSING LAYER
+        # apareo: cruzar cada producto con sus ventas usando el ID
+        # matching: cross each product with its sales using the ID
+        print(f"  {'ID':<5} {'Nombre':<22} {'Cant.':>6} {'Ingreso':>12} {'Clasif.':>14}")
+        print("  " + "-" * 62)
+
+        total_ingresos  = 0.0
+        total_vendidos  = 0
+        encontrados     = 0
+
+        for p in productos:
+            # obtener ID segun sea objeto TAD o diccionario
+            # get ID whether it's an ADT object or dictionary
+            pid    = p.id    if isinstance(p, Producto) else p.get("id")
+            pnom   = p.nombre if isinstance(p, Producto) else p.get("nombre", "")
+            ppv    = p.precio_venta if isinstance(p, Producto) else p.get("precio_venta", 0)
+            pclass = p.clasificar() if isinstance(p, Producto) else "N/A"
+
+            # apareo: buscar si este producto tiene ventas hoy
+            # matching: search if this product has sales today
+            if pid in ventas:
+                cantidad  = ventas[pid]
+                ingreso   = ppv * cantidad
+                total_ingresos += ingreso
+                total_vendidos += cantidad
+                encontrados    += 1
+                print(f"  {pid:<5} {pnom[:20]:<22} {cantidad:>6} ${ingreso:>10,.2f} {pclass:>14}")
+
+        print("  " + "-" * 62)
+        print(f"  Productos apareados / Matched products : {encontrados}")
+        print(f"  Total unidades vendidas / Total sold   : {total_vendidos}")
+        print(f"  Total ingresos / Total revenue         : ${total_ingresos:,.2f}")
+
+        # registrar en log / log the matching
+        with open(ARCHIVO_LOG, "a", encoding="utf-8") as log:
+            log.write(f"Apareo realizado / Matching done: {encontrados} productos, ${total_ingresos:,.2f}\n")
+
+    except FileNotFoundError:
+        print("  Archivo de ventas no encontrado / Sales file not found")
+
+    input("\nPresiona Enter para continuar / Press Enter to continue...")
+# NOTA: El apareo usa el ID como llave comun entre dos archivos.
+# Capa 1 (acceso): lee ventas_dia.txt y construye diccionario.
+# Capa 2 (proceso): cruza con la lista de productos por ID.
+# NOTE: Matching uses ID as the common key between two files.
+# Layer 1 (access): reads ventas_dia.txt and builds dictionary.
+# Layer 2 (process): crosses with the product list by ID.
+
+
+# =============================================================================
+# CORTE DE CONTROL / CONTROL BREAK
+# =============================================================================
+# El corte de control agrupa y suma datos cuando cambia una categoria.
+# Control break groups and sums data when a category changes.
+# En este sistema: agrupar productos por nivel de rentabilidad.
+# In this system: group products by profitability level.
+# =============================================================================
+
+def reporte_corte_control():
+    """
+    Genera un reporte con corte de control agrupando productos por
+    su clasificacion de rentabilidad: Alta, Media, Baja.
+    Generates a report with control break grouping products by
+    their profitability classification: High, Medium, Low.
+    """
+    print("\n--- Reporte Corte de Control / Control Break Report ---")
+
+    if not productos:
+        print("  No hay productos / No products")
+        input("\nPresiona Enter para continuar / Press Enter to continue...")
+        return
+
+    # PASO 1: ordenar por clasificacion para que los grupos queden juntos
+    # STEP 1: sort by classification so groups stay together
+    # esto es fundamental para el corte de control / this is fundamental for control break
+    def clave_orden(p):
+        r = p.rentabilidad if isinstance(p, Producto) else p.get("rentabilidad", 0)
+        if r >= 40:   return 0  # Alta primero / High first
+        elif r >= 20: return 1  # Media segundo / Medium second
+        else:         return 2  # Baja tercero / Low third
+
+    lista_ordenada = sorted(productos, key=clave_orden)
+
+    # PASO 2: recorrer la lista detectando cuando cambia la categoria (corte)
+    # STEP 2: loop through the list detecting when category changes (break)
+    categoria_actual  = None
+    subtotal_ganancia = 0.0
+    subtotal_count    = 0
+    total_ganancia    = 0.0
+    total_count       = 0
+
+    print()
+    print(f"  {'REPORTE POR CATEGORIA / CATEGORY REPORT':^55}")
+    print("  " + "=" * 55)
+
+    for p in lista_ordenada:
+        # obtener valores segun sea TAD u objeto
+        # get values whether ADT or object
+        if isinstance(p, Producto):
+            clasif  = p.clasificar()
+            nombre  = p.nombre
+            ganancia = p.ganancia
+        else:
+            r = p.get("rentabilidad", 0)
+            clasif  = "Alta / High" if r >= 40 else ("Media / Medium" if r >= 20 else "Baja / Low")
+            nombre  = p.get("nombre", "")
+            ganancia = p.get("ganancia", 0)
+
+        # CORTE DE CONTROL: detectar cambio de categoria
+        # CONTROL BREAK: detect category change
+        if clasif != categoria_actual:
+            # imprimir subtotal del grupo anterior si existe
+            # print subtotal of previous group if it exists
+            if categoria_actual is not None:
+                print(f"  {'─'*55}")
+                print(f"  Subtotal {categoria_actual:<20} {subtotal_count:>3} prod. ${subtotal_ganancia:>10,.2f}")
+                print(f"  {'─'*55}")
+
+            # iniciar nuevo grupo / start new group
+            categoria_actual  = clasif
+            subtotal_ganancia = 0.0
+            subtotal_count    = 0
+
+            # encabezado del nuevo grupo / new group header
+            print(f"\n  [{clasif}]")
+            print(f"  {'Nombre':<28} {'Ganancia':>12}")
+            print(f"  {'·'*42}")
+
+        # acumular datos del grupo actual / accumulate current group data
+        subtotal_ganancia += ganancia
+        subtotal_count    += 1
+        total_ganancia    += ganancia
+        total_count       += 1
+
+        print(f"  {nombre[:26]:<28} ${ganancia:>10,.2f}")
+
+    # imprimir subtotal del ultimo grupo / print last group subtotal
+    if categoria_actual is not None:
+        print(f"  {'─'*55}")
+        print(f"  Subtotal {categoria_actual:<20} {subtotal_count:>3} prod. ${subtotal_ganancia:>10,.2f}")
+        print(f"  {'─'*55}")
+
+    # TOTAL GENERAL / GRAND TOTAL
+    print()
+    print("  " + "=" * 55)
+    print(f"  {'TOTAL GENERAL / GRAND TOTAL':^55}")
+    print("  " + "=" * 55)
+    print(f"  {'Total productos / Total products':<35} {total_count}")
+    print(f"  {'Total ganancias / Total profit':<35} ${total_ganancia:,.2f}")
+    if total_count > 0:
+        promedio = total_ganancia / total_count
+        print(f"  {'Ganancia promedio / Avg profit':<35} ${promedio:,.2f}")
+    print("  " + "=" * 55)
+
+    input("\nPresiona Enter para continuar / Press Enter to continue...")
+# NOTA: El corte de control ordena primero por categoria y luego recorre
+# la lista. Cada vez que la categoria cambia imprime el subtotal del grupo
+# anterior. Al final imprime el total general.
+# NOTE: Control break sorts first by category then loops through the list.
+# Every time the category changes it prints the previous group's subtotal.
+# At the end it prints the grand total.
+
+
 
 # lista que almacena todos los productos registrados como diccionarios
 # list that stores all registered products as dictionaries
@@ -323,6 +700,18 @@ def registrar_producto():
     # increment the counter so the next product has a different ID
     contador_id = contador_id + 1
 
+    # AVANCE 8: guardar automaticamente en TXT cada vez que se registra un producto
+    # ADVANCE 8: automatically save to TXT every time a product is registered
+    # modo 'a' agrega el nuevo registro AL FINAL sin borrar los anteriores
+    # mode 'a' adds the new record AT THE END without deleting previous ones
+    try:
+        with open(ARCHIVO_TXT, "a", encoding="utf-8") as log:
+            log.write(f"ID: {producto['id']} | {producto['nombre']} | "
+                      f"Ganancia: ${producto['ganancia']:.2f} | "
+                      f"Rentabilidad: {producto['rentabilidad']:.2f}%\n")
+    except Exception:
+        pass  # si falla el log no detiene el registro / if log fails it doesn't stop registration
+
     # mostrar el resultado en pantalla con f-strings alineados
     # show the result on screen with aligned f-strings
     print()
@@ -375,19 +764,22 @@ def consultar_productos():
         print("=" * 55)
         return
 
-    # recorrer la lista con un ciclo for y mostrar cada producto
-    # loop through the list with a for loop and display each product
-    for p in productos:
+    # recorrer la lista con enumerate para obtener indice y producto a la vez
+    # loop through the list with enumerate to get index and product at once
+    # enumerate(lista, 1) empieza a contar desde 1 / enumerate(list, 1) starts counting from 1
+    for i, p in enumerate(productos, 1):
         print()
-        print(f"  {'ID':<28} {p['id']}")
-        print(f"  {'Nombre / Name':<28} {p['nombre']}")
-        print(f"  {'Costo Prov.1 / Supplier 1 Cost':<28} ${p['costo1']:,.2f}")
-        print(f"  {'Costo Prov.2 / Supplier 2 Cost':<28} ${p['costo2']:,.2f}")
-        print(f"  {'Precio Venta / Sale Price':<28} ${p['precio_venta']:,.2f}")
-        print(f"  {'Mejor Proveedor / Best Supplier':<28} {p['mejor_prov']}")
-        print(f"  {'Ganancia / Profit':<28} ${p['ganancia']:,.2f}")
-        print(f"  {'Rentabilidad / Profitability':<28} {p['rentabilidad']:.2f}%")
-        print(f"  {'Disponible / Available':<28} {'Si / Yes' if p['disponible'] else 'No'}")
+        print(f"  [{i}/{len(productos)}]")
+        print(f"  {'ID':<28} {p['id'] if isinstance(p, dict) else p.id}")
+        print(f"  {'Nombre / Name':<28} {p['nombre'] if isinstance(p, dict) else p.nombre}")
+        print(f"  {'Costo Prov.1 / Supplier 1 Cost':<28} ${(p['costo1'] if isinstance(p, dict) else p.costo1):,.2f}")
+        print(f"  {'Costo Prov.2 / Supplier 2 Cost':<28} ${(p['costo2'] if isinstance(p, dict) else p.costo2):,.2f}")
+        print(f"  {'Precio Venta / Sale Price':<28} ${(p['precio_venta'] if isinstance(p, dict) else p.precio_venta):,.2f}")
+        print(f"  {'Mejor Proveedor / Best Supplier':<28} {p['mejor_prov'] if isinstance(p, dict) else p.mejor_prov}")
+        print(f"  {'Ganancia / Profit':<28} ${(p['ganancia'] if isinstance(p, dict) else p.ganancia):,.2f}")
+        print(f"  {'Rentabilidad / Profitability':<28} {(p['rentabilidad'] if isinstance(p, dict) else p.rentabilidad):.2f}%")
+        disp = p['disponible'] if isinstance(p, dict) else p.disponible
+        print(f"  {'Disponible / Available':<28} {'Si / Yes' if disp else 'No'}")
         print("  " + "-" * 53)
 
     print(f"\n  {'Total registros / Total records':<28} {len(productos)}")
@@ -442,7 +834,7 @@ def ver_productos():
         print("  Ordenado por ganancia / Sorted by profit")
     # opcion 4 o cualquier otra no aplica ordenamiento / option 4 or any other applies no sorting
 
-    # encabezado de tabla con f-strings y modificadores de ancho
+    # encabezado de tabla con f-strings y modificadores de ancho3
     # table header with f-strings and width modifiers
     # :<5 alinea a la izquierda con 5 espacios / left-aligns with 5 spaces
     # :>10 alinea a la derecha con 10 espacios / right-aligns with 10 spaces
@@ -738,40 +1130,82 @@ def guardar_datos():
         return
 
     try:
-        # abrir el archivo en modo escritura 'w' / open file in write mode 'w'
-        # encoding utf-8 para soportar caracteres especiales / utf-8 encoding to support special characters
-        archivo = open("rentabilidad.json", "w", encoding="utf-8")
+        # AVANCE 8: uso obligatorio de with open() para garantizar que el
+        # buffer se vacia y los datos se escriben fisicamente en el disco
+        # ADVANCE 8: mandatory use of with open() to guarantee the buffer
+        # is flushed and data is physically written to disk
 
-        # json.dump() convierte la lista de diccionarios a formato JSON y la escribe
-        # json.dump() converts the list of dictionaries to JSON format and writes it
-        # indent=2 hace el archivo legible con sangria / indent=2 makes the file readable with indentation
-        json.dump(productos, archivo, ensure_ascii=False, indent=2)
+        # --- ARCHIVO JSON (carga/guardado principal) -------------------------
+        # modo 'w' sobreescribe el archivo completo con los datos actuales
+        # mode 'w' overwrites the entire file with current data
+        # AVANCE 9: convertir objetos TAD a diccionarios antes de guardar
+        # ADVANCE 9: convert ADT objects to dictionaries before saving
+        datos_a_guardar = [p.a_diccionario() if isinstance(p, Producto) else p for p in productos]
 
-        archivo.close()  # siempre cerrar el archivo despues de usarlo / always close the file after using it
+        with open(ARCHIVO_JSON, "w", encoding="utf-8") as archivo:
+            json.dump(datos_a_guardar, archivo, ensure_ascii=False, indent=2)
 
-        # -------------------------------------------------------------------------
-        # CONFIRMACION DE GUARDADO / SAVE CONFIRMATION
-        # -------------------------------------------------------------------------
+        # --- ARCHIVO TXT (registro legible por humanos) ----------------------
+        # modo 'w' crea o sobreescribe el archivo de texto
+        # mode 'w' creates or overwrites the text file
+        with open(ARCHIVO_TXT, "w", encoding="utf-8") as archivo:
+            archivo.write("=== BASE DE DATOS / DATABASE ===\n")
+            archivo.write(f"Total productos / Total products: {len(productos)}\n")
+            archivo.write("=" * 50 + "\n\n")
+
+            # recorrer cada producto y escribir sus datos
+            # loop through each product and write its data
+            for p in productos:
+                archivo.write(f"ID: {p['id']} | Nombre: {p['nombre']}\n")
+                archivo.write(f"  Costo P1 / Supplier 1 cost : ${p['costo1']:.2f}\n")
+                archivo.write(f"  Costo P2 / Supplier 2 cost : ${p['costo2']:.2f}\n")
+                archivo.write(f"  Mejor prov / Best supplier  : {p['mejor_prov']}\n")
+                archivo.write(f"  Precio venta / Sale price   : ${p['precio_venta']:.2f}\n")
+                archivo.write(f"  Ganancia / Profit           : ${p['ganancia']:.2f}\n")
+                archivo.write(f"  Rentabilidad / Profitability: {p['rentabilidad']:.2f}%\n")
+                archivo.write(f"  Disponible / Available      : {p['disponible']}\n")
+                archivo.write("-" * 50 + "\n")
+
+        # --- ARCHIVO CSV (para reportes y Excel) ----------------------------
+        # modo 'w' crea el CSV con encabezados y todos los registros
+        # mode 'w' creates the CSV with headers and all records
+        with open(ARCHIVO_CSV, "w", encoding="utf-8", newline="") as archivo:
+            # definir los campos del encabezado / define header fields
+            campos = ["id", "nombre", "costo1", "costo2", "precio_venta",
+                      "mejor_prov", "mejor_costo", "ganancia", "rentabilidad", "disponible"]
+            escritor = csv.DictWriter(archivo, fieldnames=campos, extrasaction="ignore")
+            escritor.writeheader()   # escribir encabezado / write header
+            escritor.writerows(productos)  # escribir todos los productos / write all products
+
+        # --- LOG DE EVENTO (modo append 'a') --------------------------------
+        # modo 'a' agrega una linea al final SIN borrar el historial
+        # mode 'a' adds a line at the END WITHOUT deleting history
+        with open(ARCHIVO_LOG, "a", encoding="utf-8") as log:
+            log.write(f"Guardado exitoso / Save successful: {len(productos)} producto(s)\n")
+
+        # mostrar confirmacion / show confirmation
         print()
         print("  " + "=" * 45)
         print(f"  {'Datos guardados exitosamente!':^43}")
         print(f"  {'Data saved successfully!':^43}")
         print("  " + "=" * 45)
-        print(f"  {'Archivo / File':<30} rentabilidad.json")
-        print(f"  {'Registros guardados / Saved records':<30} {len(productos)}")
-        print(f"  {'Formato / Format':<30} JSON (UTF-8)")
+        print(f"  {'Archivo JSON / JSON File':<30} {ARCHIVO_JSON}")
+        print(f"  {'Archivo TXT / TXT File':<30} {ARCHIVO_TXT}")
+        print(f"  {'Archivo CSV / CSV File':<30} {ARCHIVO_CSV}")
+        print(f"  {'Registros / Records':<30} {len(productos)}")
+        print(f"  {'Buffer vaciado / Buffer flushed':<30} Si / Yes (with open)")
         print("  " + "-" * 45)
 
     except Exception as e:
-        # captura cualquier error inesperado al escribir el archivo
-        # captures any unexpected error when writing the file
         print(f"  Error al guardar / Error saving: {e}")
 
     input("\nPresiona Enter para continuar / Press Enter to continue...")
-# NOTA: Guarda la lista completa de productos en un archivo JSON.
-# El archivo se puede abrir con cualquier editor de texto para ver los datos.
-# NOTE: Saves the complete product list to a JSON file.
-# The file can be opened with any text editor to view the data.
+# NOTA: Usa with open() obligatoriamente para garantizar que Python vacia
+# el buffer de memoria y escribe los datos fisicamente en el disco.
+# Guarda en 3 formatos: JSON (carga), TXT (legible) y CSV (reportes).
+# NOTE: Mandatory use of with open() to guarantee Python flushes the
+# memory buffer and writes data physically to disk.
+# Saves in 3 formats: JSON (load), TXT (readable) and CSV (reports).
 
 
 # =============================================================================
@@ -784,14 +1218,12 @@ def cargar_datos():
     print("\n--- Cargar Datos / Load Data ---")
 
     try:
-        # abrir el archivo en modo lectura 'r' / open file in read mode 'r'
-        archivo = open("rentabilidad.json", "r", encoding="utf-8")
-
-        # json.load() lee el archivo y lo convierte de vuelta a lista de diccionarios
-        # json.load() reads the file and converts it back to a list of dictionaries
-        datos = json.load(archivo)
-
-        archivo.close()  # cerrar el archivo / close the file
+        # AVANCE 8: with open() en modo lectura 'r' con try-except para
+        # capturar FileNotFoundError si el archivo no existe todavia
+        # ADVANCE 8: with open() in read mode 'r' with try-except to
+        # capture FileNotFoundError if the file doesn't exist yet
+        with open(ARCHIVO_JSON, "r", encoding="utf-8") as archivo:
+            datos = json.load(archivo)
 
         # validar que el archivo contenga una lista / validate the file contains a list
         if not isinstance(datos, list):
@@ -799,26 +1231,87 @@ def cargar_datos():
             input("\nPresiona Enter para continuar / Press Enter to continue...")
             return
 
-        # reemplazar la lista actual con los datos del archivo
-        # replace the current list with the data from the file
-        productos = datos
+        # AVANCE 9: convertir diccionarios a objetos TAD / convert dictionaries to ADT objects
+        productos = [Producto.desde_diccionario(d) for d in datos]
         print(f"  Datos cargados correctamente / Data loaded successfully")
         print(f"  Productos cargados / Loaded products: {len(productos)}")
 
+        # registrar en el log que se cargaron datos / log that data was loaded
+        with open(ARCHIVO_LOG, "a", encoding="utf-8") as log:
+            log.write(f"Datos cargados / Data loaded: {len(productos)} producto(s)\n")
+
     except FileNotFoundError:
-        # ocurre cuando el archivo rentabilidad.json no existe todavia
-        # occurs when the rentabilidad.json file does not exist yet
-        print("  Archivo no encontrado. Guarda primero los datos.")
-        print("  File not found. Save the data first.")
+        # el archivo no existe todavia - se crea automaticamente al guardar
+        # the file doesn't exist yet - it will be created automatically when saving
+        print(f"  Archivo '{ARCHIVO_JSON}' no encontrado.")
+        print(f"  File '{ARCHIVO_JSON}' not found.")
+        print("  Se creara automaticamente al guardar datos.")
+        print("  It will be created automatically when saving data.")
 
     except Exception as e:
         print(f"  Error al cargar / Error loading: {e}")
 
     input("\nPresiona Enter para continuar / Press Enter to continue...")
-# NOTA: Carga los datos guardados previamente desde el archivo JSON.
-# Si el archivo no existe muestra un mensaje claro en vez de cerrarse.
-# NOTE: Loads previously saved data from the JSON file.
-# If the file doesn't exist it shows a clear message instead of closing.
+# NOTA: Captura FileNotFoundError especificamente - si el archivo no existe
+# el programa NO se cierra, simplemente avisa y continua.
+# NOTE: Captures FileNotFoundError specifically - if the file doesn't exist
+# the program does NOT close, it simply notifies and continues.
+
+
+# =============================================================================
+# STARTUP - CARGA AUTOMATICA AL INICIAR / AUTO-LOAD ON STARTUP
+# =============================================================================
+
+def cargar_al_iniciar():
+    """
+    Carga automaticamente los datos guardados al iniciar el programa.
+    Automatically loads saved data when the program starts.
+    Si el archivo no existe, el programa inicia normalmente con datos precargados.
+    If the file doesn't exist, the program starts normally with preloaded data.
+    """
+    global productos, contador_id
+
+    try:
+        # intentar abrir el archivo de datos con with open()
+        # try to open the data file with with open()
+        with open(ARCHIVO_JSON, "r", encoding="utf-8") as archivo:
+            datos = json.load(archivo)
+
+        # validar formato / validate format
+        if isinstance(datos, list) and len(datos) > 0:
+            # AVANCE 9: convertir cada diccionario a objeto TAD Producto
+            # ADVANCE 9: convert each dictionary to TAD Producto object
+            productos = [Producto.desde_diccionario(d) for d in datos]
+            # ajustar el contador al ID mas alto encontrado + 1
+            # adjust the counter to the highest ID found + 1
+            max_id = max(p.get("id", 0) for p in productos)
+            contador_id = max_id + 1
+
+            # registrar inicio en el log / log startup
+            with open(ARCHIVO_LOG, "a", encoding="utf-8") as log:
+                log.write(f"Sistema iniciado / System started: {len(productos)} producto(s) cargados\n")
+
+            print(f"  Datos previos cargados / Previous data loaded: {len(productos)} producto(s)")
+            print(f"  Archivo / File: {ARCHIVO_JSON}")
+
+    except FileNotFoundError:
+        # archivo no existe todavia - usar datos precargados por defecto
+        # file doesn't exist yet - use default preloaded data
+        print(f"  Sin archivo previo / No previous file. Usando datos precargados / Using preloaded data.")
+
+        # crear el log de sistema desde cero / create system log from scratch
+        with open(ARCHIVO_LOG, "w", encoding="utf-8") as log:
+            log.write("=== LOG DEL SISTEMA / SYSTEM LOG ===\n")
+            log.write("Sistema iniciado por primera vez / System started for the first time\n")
+
+    except Exception as e:
+        print(f"  Error al cargar datos iniciales / Error loading initial data: {e}")
+# NOTA: Esta funcion se llama UNA SOLA VEZ al inicio del programa antes
+# de mostrar el menu. Garantiza que los datos persistan entre sesiones.
+# NOTE: This function is called ONCE at program start before showing the menu.
+# It guarantees that data persists between sessions.
+
+
 
 
 # =============================================================================
@@ -828,6 +1321,17 @@ def cargar_datos():
 def main():
     # ciclo principal que mantiene el programa activo hasta que el usuario salga
     # main loop that keeps the program active until the user exits
+
+    # AVANCE 8: cargar datos automaticamente al iniciar el programa
+    # ADVANCE 8: automatically load data when starting the program
+    print("=" * 45)
+    print(f"  {'SISTEMA DE ANALISIS DE RENTABILIDAD':^41}")
+    print(f"  {'Profitability Analysis System':^41}")
+    print("=" * 45)
+    print("\n  Iniciando sistema / Starting system...")
+    cargar_al_iniciar()  # carga datos previos si el archivo existe / loads previous data if file exists
+    input("\n  Presiona Enter para continuar / Press Enter to continue...")
+
     while True:
 
         limpiar()  # limpiar pantalla antes de mostrar el menu / clear screen before showing menu
@@ -849,7 +1353,9 @@ def main():
         print(f"  6. Eliminar producto   / Delete product")
         print(f"  7. Guardar datos       / Save data")
         print(f"  8. Cargar datos        / Load data")
-        print(f"  9. Salir               / Exit")
+        print(f"  9. Apareo de archivos  / File matching (TAD)")
+        print(f" 10. Reporte por categ.  / Category report (corte)")
+        print(f" 11. Salir               / Exit")
         print("-" * 45)
 
         # leer la opcion del usuario / read the user's option
@@ -858,37 +1364,42 @@ def main():
         # estructura if/elif que dirige al modulo correspondiente segun la opcion
         # if/elif structure that directs to the corresponding module based on the option
         if opcion == "1":
-            registrar_producto()    # CRUD Agregar / Add - usa .append()
+            registrar_producto()
 
         elif opcion == "2":
-            consultar_productos()   # CRUD Consultar / Read - usa ciclo for
+            consultar_productos()
             input("\nPresiona Enter para continuar / Press Enter to continue...")
 
         elif opcion == "3":
-            ver_productos()         # tabla con ordenamiento / table with sorting
+            ver_productos()
 
         elif opcion == "4":
-            buscar_producto()       # busqueda por cadena / string search
+            buscar_producto()
 
         elif opcion == "5":
-            actualizar_producto()   # CRUD Actualizar / Update
+            actualizar_producto()
 
         elif opcion == "6":
-            eliminar_producto()     # CRUD Eliminar / Delete
+            eliminar_producto()
 
         elif opcion == "7":
-            guardar_datos()         # persistencia JSON / JSON persistence
+            guardar_datos()
 
         elif opcion == "8":
-            cargar_datos()          # cargar desde JSON / load from JSON
+            cargar_datos()
 
         elif opcion == "9":
+            aparear_archivos()   # AVANCE 9: apareo de archivos / file matching
+
+        elif opcion == "10":
+            reporte_corte_control()  # AVANCE 9: corte de control / control break
+
+        elif opcion == "11":
             print("\n  Hasta luego! / Goodbye!")
             break  # break sale del ciclo while y termina el programa / break exits the while loop
 
         else:
-            # cualquier otra entrada es invalida / any other input is invalid
-            print("  Opcion invalida. Elige entre 1 y 9 / Invalid option. Choose between 1 and 9")
+            print("  Opcion invalida. Elige entre 1 y 11 / Invalid option. Choose between 1 and 11")
             input("  Presiona Enter para continuar / Press Enter to continue...")
 
 # NOTA: main() es la funcion principal que coordina todo el programa.
