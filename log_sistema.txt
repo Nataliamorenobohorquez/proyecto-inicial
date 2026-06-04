@@ -1,0 +1,2 @@
+=== LOG DEL SISTEMA / SYSTEM LOG ===
+Sistema iniciado por primera vez / System started for the first time

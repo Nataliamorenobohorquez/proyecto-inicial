@@ -1,23 +1,27 @@
 # =============================================================================
 # sistema_rentabilidad.py
-# Sistema de Analisis de Rentabilidad - Avance 9
-# Profitability Analysis System - Advance 9
+# Sistema de Analisis de Rentabilidad - VERSION FINAL (Avances 1 al 11)
+# Profitability Analysis System - FINAL VERSION (Advances 1 to 11)
 # -----------------------------------------------------------------------------
 # Descripcion / Description:
-#   Sistema que permite registrar productos, comparar costos entre dos
-#   proveedores y calcular automaticamente la ganancia y rentabilidad.
-#   Implementa almacenamiento dinamico con listas, operaciones CRUD
-#   (agregar con .append y consultar con ciclo for), busqueda con
-#   tratamiento de cadenas, y bilingüismo en encabezados y confirmaciones.
+#   Sistema completo que permite registrar productos, comparar costos entre
+#   dos proveedores y calcular automaticamente ganancia y rentabilidad.
+#   Sistema full que implementa:
+#     - Unidad 1: Modularizacion, Top-Down, while, funciones def, validacion
+#     - Unidad 2: Cadenas, Listas, Diccionarios, CRUD, busqueda, ordenamiento
+#     - Unidad 3: Persistencia (with open), TAD (clases), apareo de archivos
+#     - Unidad 4: Nodos, ListaEnlazada, Pila LIFO, Cola FIFO, Estructura Combinada
 #
-#   System that allows registering products, comparing costs between two
-#   suppliers and automatically calculating profit and profitability.
-#   Implements dynamic storage with lists, CRUD operations (add with
-#   .append and query with for loop), string-based search, and bilingual
-#   headers and confirmation messages.
+#   Full system that implements:
+#     - Unit 1: Modularization, Top-Down, while, def functions, validation
+#     - Unit 2: Strings, Lists, Dicts, CRUD, search, sorting
+#     - Unit 3: Persistence (with open), ADT (classes), file matching
+#     - Unit 4: Nodes, LinkedList, LIFO Stack, FIFO Queue, Combined Structure
 # -----------------------------------------------------------------------------
-# Avance 9: Implementacion de TAD y logica de apareo de archivos
-# Advance 9: Implementation of ADT and file matching logic
+# Avance 10: Sustitucion de listas nativas por estructuras dinamicas (Nodos)
+# Advance 10: Substitution of native lists by dynamic structures (Nodes)
+# Avance 11: Integracion de Estructuras Combinadas y logica LIFO/FIFO
+# Advance 11: Integration of Combined Structures and LIFO/FIFO logic
 # -----------------------------------------------------------------------------
 # Asignatura / Subject : Programacion Estructurada
 # Docente / Teacher    : Robinson Damian Gomez Sanchez
@@ -26,6 +30,7 @@
 import json   # modulo para guardar y leer archivos JSON / module to save and read JSON files
 import os     # modulo para limpiar la pantalla del sistema / module to clear system screen
 import csv    # modulo para leer y escribir archivos CSV / module to read and write CSV files
+from collections import deque  # modulo para implementar Cola FIFO / module to implement FIFO Queue
 
 # =============================================================================
 # CONSTANTES DE ARCHIVOS / FILE CONSTANTS
@@ -411,9 +416,263 @@ def reporte_corte_control():
 # list that stores all registered products as dictionaries
 productos = []
 
+# =============================================================================
+# AVANCE 10: CLASE NODO Y LISTA ENLAZADA / NODE CLASS AND LINKED LIST
+# =============================================================================
+# Un Nodo encadena objetos TAD en memoria usando referencias (punteros).
+# Each Node chains ADT objects in memory using references (pointers).
+# =============================================================================
+
+class Nodo:
+    """
+    Bloque basico de la lista enlazada.
+    Basic building block of the linked list.
+    Cada nodo contiene un objeto TAD Producto y apunta al siguiente.
+    Each node contains a TAD Producto object and points to the next.
+    """
+    def __init__(self, dato):
+        self.dato      = dato       # contenido: objeto Producto / content: Producto object
+        self.siguiente = None       # puntero al siguiente nodo / pointer to next node
+        self.anterior  = None       # puntero al nodo anterior (lista doble) / pointer to previous node
+
+
+class ListaEnlazada:
+    """
+    Lista enlazada simple que sustituye la lista nativa de productos.
+    Simple linked list that replaces the native product list.
+    Implementa insert_node, delete_node, display_list en ingles y español.
+    Implements insert_node, delete_node, display_list in English and Spanish.
+    """
+    def __init__(self):
+        self.cabeza = None   # head: primer nodo de la lista / first node of the list
+        self.tamanio = 0     # size: cantidad de nodos / number of nodes
+
+    def insert_node(self, producto):
+        """
+        Inserta un nodo al final de la lista / Inserts a node at the end of the list.
+        """
+        nuevo = Nodo(producto)
+        if self.cabeza is None:
+            # lista vacia: el nuevo nodo es la cabeza / empty list: new node is the head
+            self.cabeza = nuevo
+        else:
+            # recorrer hasta el ultimo nodo / traverse to the last node
+            actual = self.cabeza
+            while actual.siguiente is not None:
+                actual = actual.siguiente
+            actual.siguiente = nuevo  # encadenar al final / chain at the end
+        self.tamanio += 1
+
+    def delete_node(self, id_producto):
+        """
+        Elimina el nodo cuyo producto tiene el ID indicado.
+        Deletes the node whose product has the indicated ID.
+        Retorna True si elimino / Returns True if deleted.
+        """
+        actual   = self.cabeza
+        anterior = None
+
+        while actual is not None:
+            pid = actual.dato.id if isinstance(actual.dato, Producto) else actual.dato.get("id")
+            if pid == id_producto:
+                if anterior is None:
+                    # eliminar la cabeza / delete the head
+                    self.cabeza = actual.siguiente
+                else:
+                    # saltar el nodo a eliminar / skip the node to delete
+                    anterior.siguiente = actual.siguiente
+                self.tamanio -= 1
+                return True
+            anterior = actual
+            actual   = actual.siguiente
+        return False  # no encontrado / not found
+
+    def display_list(self):
+        """
+        Recorre y muestra todos los nodos / Traverses and shows all nodes.
+        """
+        if self.cabeza is None:
+            print("  Lista vacia / Empty list")
+            return
+        actual   = self.cabeza
+        posicion = 1
+        while actual is not None:
+            p = actual.dato
+            if isinstance(p, Producto):
+                nombre = p.nombre
+                rent   = p.rentabilidad
+            else:
+                nombre = p.get("nombre", "?")
+                rent   = p.get("rentabilidad", 0)
+            print(f"  [{posicion}] {nombre:<22} Rentabilidad: {rent:.2f}%")
+            actual   = actual.siguiente
+            posicion += 1
+
+    def to_list(self):
+        """
+        Convierte la lista enlazada a lista nativa para compatibilidad.
+        Converts the linked list to native list for compatibility.
+        """
+        resultado = []
+        actual = self.cabeza
+        while actual is not None:
+            resultado.append(actual.dato)
+            actual = actual.siguiente
+        return resultado
+
+    def __len__(self):
+        return self.tamanio
+
+
+# =============================================================================
+# AVANCE 11: PILA LIFO / LIFO STACK
+# =============================================================================
+# La Pila guarda el historial de acciones. La ultima accion se deshace primero.
+# The Stack saves the action history. The last action is undone first.
+# LIFO = Last In, First Out (ultimo en entrar, primero en salir)
+# =============================================================================
+
+class Pila:
+    """
+    Estructura LIFO para el historial de acciones del sistema.
+    LIFO structure for the system action history.
+    Permite deshacer la ultima accion / Allows undoing the last action.
+    """
+    def __init__(self):
+        self._datos = []   # lista interna / internal list
+
+    def push(self, accion):
+        """
+        Agrega una accion al tope de la pila / Pushes an action to the top of the stack.
+        """
+        self._datos.append(accion)
+
+    def pop(self):
+        """
+        Elimina y retorna la accion del tope (LIFO).
+        Removes and returns the top action (LIFO).
+        """
+        if self.esta_vacia():
+            return None
+        return self._datos.pop()   # .pop() sin argumento = quita el ultimo
+
+    def peek(self):
+        """
+        Muestra el tope sin eliminarlo / Shows the top without removing it.
+        """
+        if self.esta_vacia():
+            return None
+        return self._datos[-1]
+
+    def esta_vacia(self):
+        return len(self._datos) == 0
+
+    def __len__(self):
+        return len(self._datos)
+
+
+# =============================================================================
+# AVANCE 11: COLA FIFO / FIFO QUEUE
+# =============================================================================
+# La Cola gestiona pedidos en orden de llegada. El primero en llegar es
+# el primero en ser atendido.
+# The Queue manages orders in arrival order. First in, first out.
+# FIFO = First In, First Out (primero en entrar, primero en salir)
+# =============================================================================
+
+class Cola:
+    """
+    Estructura FIFO para gestion de pedidos/consultas del sistema.
+    FIFO structure for system order/query management.
+    Usa collections.deque para eficiencia / Uses collections.deque for efficiency.
+    """
+    def __init__(self):
+        self._datos = deque()   # deque es mas eficiente que lista para colas
+
+    def enqueue(self, pedido):
+        """
+        Agrega un pedido al final de la cola / Adds an order to the end of the queue.
+        """
+        self._datos.append(pedido)
+
+    def dequeue(self):
+        """
+        Elimina y retorna el primer pedido (FIFO).
+        Removes and returns the first order (FIFO).
+        """
+        if self.esta_vacia():
+            return None
+        return self._datos.popleft()   # popleft = sacar el primero / remove first
+
+    def esta_vacia(self):
+        return len(self._datos) == 0
+
+    def __len__(self):
+        return len(self._datos)
+
+
+# =============================================================================
+# AVANCE 11: ESTRUCTURA COMBINADA - DICCIONARIO DE COLAS POR CATEGORIA
+# =============================================================================
+# Organiza productos en colas segun su clasificacion de rentabilidad.
+# Organizes products in queues according to their profitability classification.
+# Estructura: { "Alta": Cola, "Media": Cola, "Baja": Cola }
+# =============================================================================
+
+def construir_estructura_combinada(lista_productos):
+    """
+    Construye un Diccionario de Colas (estructura combinada).
+    Builds a Dictionary of Queues (combined structure).
+    Cada clave es una categoria / rentabilidad, cada valor es una Cola FIFO.
+    Each key is a category / profitability, each value is a FIFO Queue.
+    """
+    # inicializar diccionario de colas / initialize dictionary of queues
+    dic_colas = {
+        "Alta / High":   Cola(),
+        "Media / Medium": Cola(),
+        "Baja / Low":    Cola()
+    }
+
+    for p in lista_productos:
+        if isinstance(p, Producto):
+            clasif = p.clasificar()
+            nombre = p.nombre
+        else:
+            r      = p.get("rentabilidad", 0)
+            clasif = "Alta / High" if r >= 40 else ("Media / Medium" if r >= 20 else "Baja / Low")
+            nombre = p.get("nombre", "?")
+
+        # encolar el producto en su categoria / enqueue product in its category
+        if clasif in dic_colas:
+            dic_colas[clasif].enqueue(nombre)
+
+    return dic_colas
+# NOTA: Esta es la estructura combinada obligatoria del Avance 11.
+# Diccionario (dict) + Cola (deque) = estructura jerarquica dinamica.
+# NOTE: This is the mandatory combined structure of Advance 11.
+# Dictionary (dict) + Queue (deque) = dynamic hierarchical structure.
+
+
+
 # contador que asigna un ID unico a cada producto nuevo
 # counter that assigns a unique ID to each new product
 contador_id = 9  # empieza en 9 porque ya hay 8 datos precargados / starts at 9 because 8 are preloaded
+
+# =============================================================================
+# INSTANCIAS GLOBALES DE ESTRUCTURAS DINAMICAS / GLOBAL DYNAMIC STRUCTURE INSTANCES
+# =============================================================================
+
+# AVANCE 10: lista enlazada que sustituye la lista nativa de inventario
+# ADVANCE 10: linked list that replaces the native inventory list
+inventario = ListaEnlazada()
+
+# AVANCE 11: pila para historial de acciones (LIFO)
+# ADVANCE 11: stack for action history (LIFO)
+historial_acciones = Pila()
+
+# AVANCE 11: cola para gestion de pedidos pendientes (FIFO)
+# ADVANCE 11: queue for pending order management (FIFO)
+cola_pedidos = Cola()
 
 # =============================================================================
 # DATOS PRECARGADOS / PRELOADED DATA
@@ -695,6 +954,16 @@ def registrar_producto():
     # agregar el diccionario a la lista global de productos
     # add the dictionary to the global product list
     productos.append(producto)
+
+    # AVANCE 10: insertar en la lista enlazada tambien
+    # ADVANCE 10: also insert into the linked list
+    obj_producto = Producto.desde_diccionario(producto.a_diccionario() if isinstance(producto, Producto) else producto)
+    inventario.insert_node(obj_producto)
+
+    # AVANCE 11: registrar la accion en la pila de historial (LIFO)
+    # ADVANCE 11: record the action in the history stack (LIFO)
+    nombre_p = producto.nombre if isinstance(producto, Producto) else producto.get("nombre", "")
+    historial_acciones.push({"accion": "REGISTRAR", "nombre": nombre_p, "id": contador_id})
 
     # incrementar el contador para que el proximo producto tenga un ID diferente
     # increment the counter so the next product has a different ID
@@ -1318,6 +1587,159 @@ def cargar_al_iniciar():
 # MENU PRINCIPAL / MAIN MENU
 # =============================================================================
 
+# =============================================================================
+# MODULO - HISTORIAL / DESHACER (PILA LIFO) / HISTORY / UNDO (LIFO STACK)
+# =============================================================================
+
+def modulo_historial():
+    """
+    Muestra el historial de acciones y permite deshacer la ultima.
+    Shows the action history and allows undoing the last one.
+    Usa la Pila LIFO: la ultima accion registrada es la primera en deshacerse.
+    Uses LIFO Stack: last registered action is the first to be undone.
+    """
+    global productos, inventario
+
+    print("\n--- Historial de Acciones / Action History (LIFO) ---")
+
+    if len(historial_acciones) == 0:
+        print("  No hay acciones en el historial / No actions in history")
+        input("\nPresiona Enter para continuar / Press Enter to continue...")
+        return
+
+    # mostrar el tope de la pila sin eliminar / show stack top without removing
+    print(f"\n  Total acciones / Total actions: {len(historial_acciones)}")
+    print(f"  Ultima accion (tope) / Last action (top): {historial_acciones.peek()}")
+    print()
+    print("  1. Deshacer ultima accion / Undo last action")
+    print("  2. Solo ver / Just view")
+
+    opcion = input("\n  Opcion / Option: ").strip()
+
+    if opcion == "1":
+        # pop() extrae la ultima accion de la pila (LIFO)
+        # pop() extracts the last action from the stack (LIFO)
+        accion = historial_acciones.pop()
+        if accion:
+            print(f"\n  Deshaciendo / Undoing: {accion['accion']} - '{accion['nombre']}'")
+
+            if accion["accion"] == "REGISTRAR":
+                # deshacer registro: eliminar el ultimo producto agregado
+                # undo registration: delete the last added product
+                if productos:
+                    productos.pop()
+                inventario.delete_node(accion.get("id", -1))
+                print(f"  Producto '{accion['nombre']}' eliminado del sistema.")
+                print(f"  Product '{accion['nombre']}' removed from system.")
+
+    print(f"\n  Acciones restantes / Remaining actions: {len(historial_acciones)}")
+    input("\nPresiona Enter para continuar / Press Enter to continue...")
+# NOTA: La Pila LIFO funciona como Ctrl+Z. La ultima accion registrada
+# con push() es la primera que se deshace con pop().
+# NOTE: The LIFO Stack works like Ctrl+Z. The last action registered
+# with push() is the first to be undone with pop().
+
+
+# =============================================================================
+# MODULO - COLA DE PEDIDOS (COLA FIFO) / ORDER QUEUE (FIFO QUEUE)
+# =============================================================================
+
+def modulo_cola_pedidos():
+    """
+    Gestiona pedidos pendientes en orden de llegada (FIFO).
+    Manages pending orders in arrival order (FIFO).
+    El primer pedido en llegar es el primero en atenderse.
+    The first order to arrive is the first to be served.
+    """
+    print("\n--- Cola de Pedidos / Order Queue (FIFO) ---")
+    print()
+    print("  1. Agregar pedido a la cola / Add order to queue")
+    print("  2. Atender siguiente pedido / Serve next order")
+    print("  3. Ver cola actual / View current queue")
+
+    opcion = input("\n  Opcion / Option: ").strip()
+
+    if opcion == "1":
+        nombre = input("  Nombre del pedido / Order name: ").strip()
+        if nombre:
+            # enqueue: agregar al final de la cola
+            # enqueue: add to the end of the queue
+            cola_pedidos.enqueue({"pedido": nombre, "estado": "Pendiente / Pending"})
+            print(f"  Pedido '{nombre}' agregado a la cola.")
+            print(f"  Order '{nombre}' added to the queue.")
+            print(f"  Pedidos en cola / Orders in queue: {len(cola_pedidos)}")
+
+    elif opcion == "2":
+        if cola_pedidos.esta_vacia():
+            print("  No hay pedidos en la cola / No orders in the queue")
+        else:
+            # dequeue: sacar el primero de la cola (FIFO)
+            # dequeue: remove the first from the queue (FIFO)
+            pedido = cola_pedidos.dequeue()
+            print(f"\n  Atendiendo / Serving: '{pedido['pedido']}'")
+            print(f"  Estado / Status: Completado / Completed")
+            print(f"  Pedidos restantes / Remaining orders: {len(cola_pedidos)}")
+
+    elif opcion == "3":
+        if cola_pedidos.esta_vacia():
+            print("  Cola vacia / Empty queue")
+        else:
+            print(f"\n  Pedidos en cola / Orders in queue: {len(cola_pedidos)}")
+            # convertir deque a lista para mostrar sin consumir
+            # convert deque to list to show without consuming
+            for i, p in enumerate(list(cola_pedidos._datos), 1):
+                print(f"  [{i}] {p['pedido']} - {p['estado']}")
+
+    input("\nPresiona Enter para continuar / Press Enter to continue...")
+# NOTA: La Cola FIFO garantiza que el primer pedido registrado sea el
+# primero en atenderse. enqueue() agrega al final, dequeue() saca del frente.
+# NOTE: FIFO Queue ensures the first registered order is served first.
+# enqueue() adds to the end, dequeue() removes from the front.
+
+
+# =============================================================================
+# MODULO - LISTA ENLAZADA DE INVENTARIO / LINKED LIST INVENTORY
+# =============================================================================
+
+def modulo_lista_enlazada():
+    """
+    Muestra el inventario usando la lista enlazada de nodos.
+    Shows the inventory using the linked list of nodes.
+    Demuestra recorrido por punteros / Demonstrates pointer traversal.
+    """
+    print("\n--- Lista Enlazada - Inventario / Linked List - Inventory ---")
+    print()
+
+    # sincronizar lista enlazada con productos actuales si esta vacia
+    # sync linked list with current products if empty
+    if len(inventario) == 0 and len(productos) > 0:
+        for p in productos:
+            obj = Producto.desde_diccionario(p.a_diccionario() if isinstance(p, Producto) else p)
+            inventario.insert_node(obj)
+
+    print(f"  Nodos en lista / Nodes in list: {len(inventario)}")
+    print(f"  Cabeza (head) / Head: {inventario.cabeza.dato.nombre if inventario.cabeza else 'None'}")
+    print()
+
+    # recorrer y mostrar todos los nodos
+    # traverse and show all nodes
+    inventario.display_list()
+
+    # mostrar estructura combinada / show combined structure
+    print()
+    print("  --- Estructura Combinada: Diccionario de Colas / Dict of Queues ---")
+    dic = construir_estructura_combinada(productos)
+    for categoria, cola in dic.items():
+        items = list(cola._datos)
+        print(f"  [{categoria}] → {items if items else 'Vacia / Empty'}")
+
+    input("\nPresiona Enter para continuar / Press Enter to continue...")
+# NOTA: La lista enlazada recorre los nodos siguiendo punteros (siguiente).
+# Cada nodo contiene un objeto TAD Producto (Avance 9 + Avance 10).
+# NOTE: The linked list traverses nodes following pointers (siguiente).
+# Each node contains a TAD Producto object (Advance 9 + Advance 10).
+
+
 def main():
     # ciclo principal que mantiene el programa activo hasta que el usuario salga
     # main loop that keeps the program active until the user exits
@@ -1355,7 +1777,10 @@ def main():
         print(f"  8. Cargar datos        / Load data")
         print(f"  9. Apareo de archivos  / File matching (TAD)")
         print(f" 10. Reporte por categ.  / Category report (corte)")
-        print(f" 11. Salir               / Exit")
+        print(f" 11. Historial / deshacer/ Action history - Undo (LIFO)")
+        print(f" 12. Cola de pedidos     / Order queue (FIFO)")
+        print(f" 13. Lista enlazada      / Linked list inventory")
+        print(f" 14. Salir               / Exit")
         print("-" * 45)
 
         # leer la opcion del usuario / read the user's option
@@ -1389,17 +1814,26 @@ def main():
             cargar_datos()
 
         elif opcion == "9":
-            aparear_archivos()   # AVANCE 9: apareo de archivos / file matching
+            aparear_archivos()
 
         elif opcion == "10":
-            reporte_corte_control()  # AVANCE 9: corte de control / control break
+            reporte_corte_control()
 
         elif opcion == "11":
+            modulo_historial()       # AVANCE 11: Pila LIFO / LIFO Stack
+
+        elif opcion == "12":
+            modulo_cola_pedidos()    # AVANCE 11: Cola FIFO / FIFO Queue
+
+        elif opcion == "13":
+            modulo_lista_enlazada()  # AVANCE 10: Lista enlazada / Linked list
+
+        elif opcion == "14":
             print("\n  Hasta luego! / Goodbye!")
-            break  # break sale del ciclo while y termina el programa / break exits the while loop
+            break  # break sale del ciclo while / break exits the while loop
 
         else:
-            print("  Opcion invalida. Elige entre 1 y 11 / Invalid option. Choose between 1 and 11")
+            print("  Opcion invalida. Elige entre 1 y 14 / Invalid option. Choose between 1 and 14")
             input("  Presiona Enter para continuar / Press Enter to continue...")
 
 # NOTA: main() es la funcion principal que coordina todo el programa.
